@@ -14,15 +14,33 @@ Vagrant.configure(2) do |config|
         end
 
         torpypi.vm.provision "shell", inline: <<-SHELL
-sudo setenforce 0
+sudo setenforce 1
 sudo dnf clean all
 sudo dnf upgrade --best --allowerasing -y
-sudo dnf install -y tor nginx
 sudo hostnamectl set-hostname --static torpypi.python.example
+
+sudo chown -R root:root /vagrant/etc/
+sudo chmod -R go-w /vagrant/etc/
+sudo cp -av -t /etc/ /vagrant/etc/*
+
+# install nginx and tor to create users
+sudo rpm --import /vagrant/etc/pki/rpm-gpg/RPM-GPG-KEY-torproject.org.asc
+sudo dnf install -y tor nginx python3-pip
+
+sudo chmod 0600 /vagrant/var/lib/tor/python/*
+sudo chown toranon:toranon /vagrant/var/lib/tor/python/*
+sudo mkdir -p -m 700 /var/lib/tor/python
+sudo cp -av /vagrant/var/lib/tor/python/* /var/lib/tor/python/
+sudo chown -R toranon:toranon /var/lib/tor/python
+sudo chmod -R go-rwx /var/lib/tor/python
+sudo chcon -R system_u:object_r:tor_var_lib_t:s0 /var/lib/tor/python/
+
+sudo restorecon -R /var/lib/tor/ /etc/
+
 sudo systemctl enable tor.service
-sudo systemctl start tor.service
+sudo systemctl restart tor.service
 sudo systemctl enable nginx.service
-sudo systemctl start nginx.service
+sudo systemctl restart nginx.service
         SHELL
     end
 
